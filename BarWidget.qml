@@ -11,6 +11,10 @@ BarWidget {
 
   readonly property var jabraService: bar && bar.shell
     ? bar.shell.serviceFor(root.moduleName) : null
+  readonly property bool opened: panelLoader.item
+    ? panelLoader.item.opened === true : false
+  readonly property bool popoutSwitchClosing: panelLoader.item
+    ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property bool connected: jabraService ? jabraService.connected : false
   readonly property bool serviceAvailable: jabraService ? jabraService.serviceAvailable : false
   readonly property bool batteryKnown: jabraService ? jabraService.batteryKnown : false
@@ -26,6 +30,13 @@ BarWidget {
   function open() { if (panelLoader.item) panelLoader.item.open() }
   function close() { if (panelLoader.item) panelLoader.item.close() }
   function toggle() { if (panelLoader.item) panelLoader.item.toggle() }
+  function closeForPopoutSwitch() {
+    if (!panelLoader.item) return
+    if (typeof panelLoader.item.closeForPopoutSwitch === "function")
+      panelLoader.item.closeForPopoutSwitch()
+    else
+      panelLoader.item.close()
+  }
 
   function injectPanel() {
     if (!panelLoader.item) return
