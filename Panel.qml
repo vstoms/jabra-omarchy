@@ -39,9 +39,19 @@ Panel {
     if (!root.jabraService || !root.jabraService.batteryKnown) return "—"
     return root.jabraService.batteryLevel + "%" + (root.jabraService.charging ? " · charging" : "")
   }
+  function listContains(values, wanted) {
+    if (!values || values.length === undefined) return false
+    for (var i = 0; i < values.length; i++)
+      if (String(values[i]) === String(wanted)) return true
+    return false
+  }
+  function settingChoices(setting) {
+    if (!setting || !setting.choices || setting.choices.length === undefined) return []
+    return setting.choices
+  }
   function hasMode(mode) {
-    if (!root.jabraService || !root.jabraService.output || !Array.isArray(root.jabraService.output.modes)) return false
-    return root.jabraService.output.modes.indexOf(mode) >= 0
+    return root.jabraService && root.jabraService.output
+      ? root.listContains(root.jabraService.output.modes, mode) : false
   }
 
   component DetailRow: Item {
@@ -279,7 +289,7 @@ Panel {
                   }
                   Text {
                     width: parent.width
-                    visible: modelData.mayRestart === true || !Array.isArray(modelData.choices)
+                    visible: modelData.mayRestart === true || root.settingChoices(modelData).length < 2
                     text: modelData.mayRestart === true ? "May restart the headset" : "Read only"
                     color: root.dim
                     font.family: root.fontFamily
@@ -295,12 +305,11 @@ Panel {
                   anchors.verticalCenter: parent.verticalCenter
                   showLabel: false
                   value: String(modelData.value === undefined ? "" : modelData.value)
-                  options: Array.isArray(modelData.choices) ? modelData.choices : [value]
+                  options: root.settingChoices(modelData).length > 0 ? root.settingChoices(modelData) : [value]
                   foreground: root.foreground
                   fontFamily: root.fontFamily
                   enabled: modelData.editable === true
-                    && Array.isArray(modelData.choices)
-                    && modelData.choices.length > 1
+                    && root.settingChoices(modelData).length > 1
                     && !root.busy
                   opacity: enabled ? 1.0 : 0.6
                   onChanged: function(nextValue) {
