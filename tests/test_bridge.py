@@ -92,6 +92,16 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(value, {"ready": True})
             self.assertEqual(client.notifications[0]["method"], "sound.changed")
 
+    def test_rpc_connection_remains_usable_after_read_timeout(self):
+        def handler(request):
+            return {"ready": True}
+
+        with FakeServer(handler) as fake, bridge.RpcClient(fake.path, timeout=0.01) as client:
+            with self.assertRaises(socket.timeout):
+                client.receive()
+            client.sock.settimeout(1)
+            self.assertEqual(client.call("service.ping"), {"ready": True})
+
     def test_setting_next_sends_bound_target_and_previous_value(self):
         seen = {}
 

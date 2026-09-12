@@ -54,15 +54,12 @@ class RpcClient:
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.settimeout(timeout)
         self.sock.connect(str(self.path))
-        self.reader = self.sock.makefile("rb")
+        self.buffer = bytearray()
         self.next_id = 1
         self.notifications: list[dict[str, Any]] = []
 
     def close(self) -> None:
-        try:
-            self.reader.close()
-        finally:
-            self.sock.close()
+        self.sock.close()
 
     def __enter__(self) -> "RpcClient":
         return self
@@ -84,9 +81,13 @@ class RpcClient:
         return request_id
 
     def receive(self) -> dict[str, Any]:
-        line = self.reader.readline()
-        if not line:
-            raise BridgeError("Jabridge closed the IPC connection")
+        while b"\n" not in self.buffer:
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise BridgeError("Jabridge closed the IPC connection")
+            self.buffer.extend(chunk)
+        line, _, remainder = self.buffer.partition(b"\n")
+        self.buffer = bytearray(remainder)
         try:
             message = json.loads(line)
         except json.JSONDecodeError as exc:
