@@ -27,20 +27,23 @@ class FakeServer:
 
     def run(self):
         connection, _ = self.server.accept()
-        with connection, connection.makefile("rb") as reader:
-            for line in reader:
-                request = json.loads(line)
-                result = self.handler(request)
-                if isinstance(result, list) and result and result[0] == "notification":
-                    notification = result[1]
-                    result = result[2]
-                    connection.sendall(json.dumps(notification).encode() + b"\n")
-                response = {"jsonrpc": "2.0", "id": request["id"]}
-                if isinstance(result, Exception):
-                    response["error"] = {"code": -32000, "message": str(result)}
-                else:
-                    response["result"] = result
-                connection.sendall(json.dumps(response).encode() + b"\n")
+        try:
+            with connection, connection.makefile("rb") as reader:
+                for line in reader:
+                    request = json.loads(line)
+                    result = self.handler(request)
+                    if isinstance(result, list) and result and result[0] == "notification":
+                        notification = result[1]
+                        result = result[2]
+                        connection.sendall(json.dumps(notification).encode() + b"\n")
+                    response = {"jsonrpc": "2.0", "id": request["id"]}
+                    if isinstance(result, Exception):
+                        response["error"] = {"code": -32000, "message": str(result)}
+                    else:
+                        response["result"] = result
+                    connection.sendall(json.dumps(response).encode() + b"\n")
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def close(self):
         self.server.close()
@@ -101,6 +104,20 @@ class BridgeTests(unittest.TestCase):
                 client.receive()
             client.sock.settimeout(1)
             self.assertEqual(client.call("service.ping"), {"ready": True})
+
+    def test_rpc_rejects_frame_larger_than_buffer_limit(self):
+        def handler(request):
+            return "x" * 256
+
+        original_limit = bridge.MAX_RPC_BUFFER_BYTES
+        bridge.MAX_RPC_BUFFER_BYTES = 128
+        try:
+            with FakeServer(handler) as fake, bridge.RpcClient(fake.path) as client:
+                with self.assertRaisesRegex(bridge.BridgeError, "frame exceeds 128 bytes"):
+                    client.call("service.ping")
+                self.assertLessEqual(len(client.buffer), 128)
+        finally:
+            bridge.MAX_RPC_BUFFER_BYTES = original_limit
 
     def test_setting_next_sends_bound_target_and_previous_value(self):
         seen = {}

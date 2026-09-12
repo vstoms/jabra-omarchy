@@ -65,7 +65,10 @@ Manage those separately with Jabridge's own setup commands.
 ## IPC behavior and safety
 
 The bridge connects to `$JABRIDGE_SOCKET`, or `$XDG_RUNTIME_DIR/jabridge.sock` by
-default. It requires the socket to be owned by the current user.
+default. It requires the socket to be owned by the current user. Automatic processes
+use the system interpreter at `/usr/bin/python3` in isolated mode, so inherited `PATH`,
+`PYTHONPATH`, and user site packages cannot select or alter the Python runtime. Incoming
+newline-delimited JSON-RPC frames are bounded to 1 MiB before parsing.
 
 For changes, the bridge first reads current state and reuses Jabridge's complete opaque
 `target`. Headset setting changes also include the current value as `previous`. Values

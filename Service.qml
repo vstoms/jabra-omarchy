@@ -11,6 +11,11 @@ Item {
   readonly property string pluginDirectory: Qt.resolvedUrl(".").toString()
     .replace(/^file:\/\//, "").replace(/\/$/, "")
   readonly property string bridgePath: root.pluginDirectory + "/bin/jabridge_ipc.py"
+  readonly property string pythonPath: "/usr/bin/python3"
+
+  function bridgeCommand(arguments) {
+    return [root.pythonPath, "-I", root.bridgePath].concat(arguments)
+  }
 
   property bool initialized: false
   property bool serviceAvailable: false
@@ -65,13 +70,13 @@ Item {
   function runAction(arguments) {
     if (root.actionBusy || !Array.isArray(arguments) || arguments.length === 0) return
     root.actionMessage = ""
-    actionProcess.command = [root.bridgePath].concat(arguments)
+    actionProcess.command = root.bridgeCommand(arguments)
     actionProcess.running = true
   }
 
   function refresh() {
     if (!refreshProcess.running) {
-      refreshProcess.command = [root.bridgePath, "status"]
+      refreshProcess.command = root.bridgeCommand(["status"])
       refreshProcess.running = true
     }
   }
@@ -86,7 +91,7 @@ Item {
 
   Process {
     id: watcher
-    command: [root.bridgePath, "watch"]
+    command: root.bridgeCommand(["watch"])
     running: true
     stdout: SplitParser {
       onRead: function(line) { root.applySnapshot(line) }

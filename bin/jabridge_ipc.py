@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Small, dependency-free Jabridge JSON-RPC bridge for the Omarchy plugin."""
 
 from __future__ import annotations
@@ -12,6 +12,8 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+
+MAX_RPC_BUFFER_BYTES = 1024 * 1024
 
 RELEVANT_EVENTS = {
     "device.attached",
@@ -81,13 +83,30 @@ class RpcClient:
         return request_id
 
     def receive(self) -> dict[str, Any]:
-        while b"\n" not in self.buffer:
-            chunk = self.sock.recv(65536)
+        while True:
+            delimiter = self.buffer.find(b"\n")
+            if delimiter >= 0:
+                line = bytes(self.buffer[:delimiter])
+                del self.buffer[:delimiter + 1]
+                break
+
+            remaining = MAX_RPC_BUFFER_BYTES - len(self.buffer)
+            if remaining == 0:
+                terminator = self.sock.recv(1)
+                if not terminator:
+                    raise BridgeError("Jabridge closed the IPC connection")
+                if terminator != b"\n":
+                    raise BridgeError(
+                        f"Jabridge JSON-RPC frame exceeds {MAX_RPC_BUFFER_BYTES} bytes"
+                    )
+                line = bytes(self.buffer)
+                self.buffer.clear()
+                break
+
+            chunk = self.sock.recv(min(65536, remaining))
             if not chunk:
                 raise BridgeError("Jabridge closed the IPC connection")
             self.buffer.extend(chunk)
-        line, _, remainder = self.buffer.partition(b"\n")
-        self.buffer = bytearray(remainder)
         try:
             message = json.loads(line)
         except json.JSONDecodeError as exc:
