@@ -196,13 +196,19 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(value["settings"], [])
         self.assertEqual(value["error"], "offline")
 
-    def test_qml_one_shot_processes_have_hard_deadlines(self):
+    def test_qml_process_boundary_is_bounded_and_isolated(self):
         service = (ROOT / "Service.qml").read_text()
         self.assertIn('readonly property int oneShotDeadlineMs: 12000', service)
+        self.assertIn('readonly property int outputBudgetCharacters: 262144', service)
+        self.assertGreaterEqual(service.count('clearEnvironment: true'), 4)
+        self.assertIn('return [root.setsidPath, root.pythonPath, "-I", root.bridgePath]', service)
+        self.assertNotIn('StdioCollector', service)
+        self.assertGreaterEqual(service.count('splitMarker: ""'), 6)
+        self.assertIn('[root.killPath, "-KILL", "--", "-" + String(pid)]', service)
         self.assertIn('id: refreshDeadline', service)
-        self.assertIn('refreshProcess.signal(9)', service)
+        self.assertIn('root.terminateProcessGroup(refreshProcess, refreshKiller)', service)
         self.assertIn('id: actionDeadline', service)
-        self.assertIn('actionProcess.signal(9)', service)
+        self.assertIn('root.terminateProcessGroup(actionProcess, actionKiller)', service)
 
 
 if __name__ == "__main__":

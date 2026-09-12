@@ -65,12 +65,19 @@ Manage those separately with Jabridge's own setup commands.
 ## IPC behavior and safety
 
 The bridge connects to `$JABRIDGE_SOCKET`, or `$XDG_RUNTIME_DIR/jabridge.sock` by
-default. It requires the socket to be owned by the current user. Automatic processes
-use the system interpreter at `/usr/bin/python3` in isolated mode, so inherited `PATH`,
-`PYTHONPATH`, and user site packages cannot select or alter the Python runtime. Incoming
-newline-delimited JSON-RPC frames are bounded to 1 MiB before parsing. Synchronous RPC
-calls discard unsolicited notifications and enforce both wall-clock and message-count
-budgets. UI refresh and action processes are hard-stopped after 12 seconds.
+default. It requires the socket to be owned by the current user. Every QML process
+clears its inherited environment and passes only `XDG_RUNTIME_DIR` and a fixed locale.
+The bridge runs as `/usr/bin/python3 -I` in a dedicated process group, so `PATH`, loader
+variables, Python environment variables, and user site packages cannot select or alter
+the runtime. Incoming newline-delimited JSON-RPC frames are bounded to 1 MiB before
+parsing. Synchronous RPC calls discard unsolicited notifications and enforce both
+wall-clock and message-count budgets.
+
+The QML supervisor uses non-buffering raw-chunk parsers instead of lifetime collectors,
+keeps its own stdout/stderr and partial-frame storage within a conservative 262,144
+character ceiling (at most 1 MiB of UTF-8), and immediately kills the dedicated process
+group if that ceiling is crossed. UI refresh and action groups are also killed after 12
+seconds. The persistent watcher stops restarting after any supervisor output violation.
 
 For changes, the bridge first reads current state and reuses Jabridge's complete opaque
 `target`. Headset setting changes also include the current value as `previous`. Values
