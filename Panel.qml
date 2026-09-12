@@ -259,39 +259,53 @@ Panel {
               delegate: Item {
                 required property var modelData
                 width: settingsColumn.width
-                implicitHeight: Math.max(settingLabel.implicitHeight + settingValue.implicitHeight + Style.space(2), changeButton.implicitHeight)
+                implicitHeight: Math.max(settingText.implicitHeight, settingDropdown.implicitHeight)
 
-                Text {
-                  id: settingLabel
-                  text: String(modelData.label || modelData.key || "Setting")
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
+                Column {
+                  id: settingText
                   anchors.left: parent.left
-                  anchors.top: parent.top
-                  width: parent.width - changeButton.width - Style.space(12)
-                  elide: Text.ElideRight
+                  anchors.right: settingDropdown.left
+                  anchors.rightMargin: Style.space(12)
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.space(2)
+
+                  Text {
+                    width: parent.width
+                    text: String(modelData.label || modelData.key || "Setting")
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.bodySmall
+                    elide: Text.ElideRight
+                  }
+                  Text {
+                    width: parent.width
+                    visible: modelData.mayRestart === true || !Array.isArray(modelData.choices)
+                    text: modelData.mayRestart === true ? "May restart the headset" : "Read only"
+                    color: root.dim
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
+                  }
                 }
-                Text {
-                  id: settingValue
-                  text: String(modelData.value === undefined ? "—" : modelData.value)
-                    + (modelData.mayRestart ? " · may restart" : "")
-                  color: root.dim
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  anchors.left: parent.left
-                  anchors.top: settingLabel.bottom
-                  width: parent.width - changeButton.width - Style.space(12)
-                  elide: Text.ElideRight
-                }
-                ActionButton {
-                  id: changeButton
-                  text: "CHANGE"
+
+                Dropdown {
+                  id: settingDropdown
+                  width: Style.space(180)
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
-                  visible: modelData.editable === true && Array.isArray(modelData.choices) && modelData.choices.length > 1
-                  enabled: visible && !root.busy
-                  onClicked: root.jabraService.cycleSetting(String(modelData.key))
+                  showLabel: false
+                  value: String(modelData.value === undefined ? "" : modelData.value)
+                  options: Array.isArray(modelData.choices) ? modelData.choices : [value]
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  enabled: modelData.editable === true
+                    && Array.isArray(modelData.choices)
+                    && modelData.choices.length > 1
+                    && !root.busy
+                  opacity: enabled ? 1.0 : 0.6
+                  onChanged: function(nextValue) {
+                    root.jabraService.setSetting(String(modelData.key), nextValue)
+                  }
                 }
               }
             }
