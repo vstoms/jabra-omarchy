@@ -68,7 +68,9 @@ The bridge connects to `$JABRIDGE_SOCKET`, or `$XDG_RUNTIME_DIR/jabridge.sock` b
 default. It requires the socket to be owned by the current user. Automatic processes
 use the system interpreter at `/usr/bin/python3` in isolated mode, so inherited `PATH`,
 `PYTHONPATH`, and user site packages cannot select or alter the Python runtime. Incoming
-newline-delimited JSON-RPC frames are bounded to 1 MiB before parsing.
+newline-delimited JSON-RPC frames are bounded to 1 MiB before parsing. Synchronous RPC
+calls discard unsolicited notifications and enforce both wall-clock and message-count
+budgets. UI refresh and action processes are hard-stopped after 12 seconds.
 
 For changes, the bridge first reads current state and reuses Jabridge's complete opaque
 `target`. Headset setting changes also include the current value as `previous`. Values

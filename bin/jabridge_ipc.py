@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 MAX_RPC_BUFFER_BYTES = 1024 * 1024
+MAX_RPC_MESSAGES_PER_CALL = 256
 
 RELEVANT_EVENTS = {
     "device.attached",
@@ -58,7 +59,7 @@ class RpcClient:
         self.sock.connect(str(self.path))
         self.buffer = bytearray()
         self.next_id = 1
-        self.notifications: list[dict[str, Any]] = []
+        self.call_timeout = timeout
 
     def close(self) -> None:
         self.sock.close()
@@ -116,19 +117,38 @@ class RpcClient:
         return message
 
     def call(self, method: str, params: Any = None) -> Any:
-        request_id = self.send(method, params)
-        while True:
-            message = self.receive()
-            if "id" not in message:
-                self.notifications.append(message)
-                continue
-            if message.get("id") != request_id:
-                continue
-            error = message.get("error")
-            if error:
-                detail = error.get("message") if isinstance(error, dict) else str(error)
-                raise BridgeError(str(detail or f"Jabridge call {method} failed"))
-            return message.get("result")
+        deadline = time.monotonic() + self.call_timeout
+        previous_timeout = self.sock.gettimeout()
+        try:
+            self.sock.settimeout(self.call_timeout)
+            request_id = self.send(method, params)
+            for _ in range(MAX_RPC_MESSAGES_PER_CALL):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise BridgeError(f"Jabridge call {method} timed out")
+                read_timeout = remaining
+                if previous_timeout is not None:
+                    read_timeout = min(read_timeout, previous_timeout)
+                self.sock.settimeout(read_timeout)
+                message = self.receive()
+                if "id" not in message:
+                    # A fresh snapshot follows subscribed events, so retaining
+                    # notifications during synchronous calls is unnecessary.
+                    continue
+                if message.get("id") != request_id:
+                    continue
+                error = message.get("error")
+                if error:
+                    detail = error.get("message") if isinstance(error, dict) else str(error)
+                    raise BridgeError(str(detail or f"Jabridge call {method} failed"))
+                return message.get("result")
+            raise BridgeError(
+                f"Jabridge call {method} exceeded {MAX_RPC_MESSAGES_PER_CALL} messages"
+            )
+        except socket.timeout as exc:
+            raise BridgeError(f"Jabridge call {method} timed out") from exc
+        finally:
+            self.sock.settimeout(previous_timeout)
 
 
 def selected_headset(devices: list[dict[str, Any]]) -> dict[str, Any] | None:

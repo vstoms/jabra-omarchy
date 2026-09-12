@@ -31,6 +31,9 @@ Item {
   property string backendError: ""
   property string actionMessage: ""
   property int revision: 0
+  property bool refreshTimedOut: false
+  property bool actionTimedOut: false
+  readonly property int oneShotDeadlineMs: 12000
 
   readonly property bool actionBusy: actionProcess.running
   readonly property string deviceName: device && device.name ? String(device.name) : "Jabra"
@@ -70,14 +73,18 @@ Item {
   function runAction(arguments) {
     if (root.actionBusy || !Array.isArray(arguments) || arguments.length === 0) return
     root.actionMessage = ""
+    root.actionTimedOut = false
     actionProcess.command = root.bridgeCommand(arguments)
     actionProcess.running = true
+    actionDeadline.restart()
   }
 
   function refresh() {
     if (!refreshProcess.running) {
+      root.refreshTimedOut = false
       refreshProcess.command = root.bridgeCommand(["status"])
       refreshProcess.running = true
+      refreshDeadline.restart()
     }
   }
 
@@ -118,8 +125,25 @@ Item {
     stdout: StdioCollector { id: refreshOutput; waitForEnd: true }
     stderr: StdioCollector { id: refreshError; waitForEnd: true }
     onExited: function(exitCode) {
+      refreshDeadline.stop()
+      if (root.refreshTimedOut) {
+        root.refreshTimedOut = false
+        return
+      }
       if (exitCode === 0) root.applySnapshot(refreshOutput.text)
       else root.backendError = String(refreshError.text || "Unable to contact Jabridge").trim()
+    }
+  }
+
+  Timer {
+    id: refreshDeadline
+    interval: root.oneShotDeadlineMs
+    repeat: false
+    onTriggered: {
+      if (!refreshProcess.running) return
+      root.refreshTimedOut = true
+      root.backendError = "Jabridge refresh timed out."
+      refreshProcess.signal(9)
     }
   }
 
@@ -130,6 +154,12 @@ Item {
     stdout: StdioCollector { id: actionOutput; waitForEnd: true }
     stderr: StdioCollector { id: actionError; waitForEnd: true }
     onExited: function(exitCode) {
+      actionDeadline.stop()
+      if (root.actionTimedOut) {
+        root.actionTimedOut = false
+        actionMessageTimer.restart()
+        return
+      }
       var detail = String(actionOutput.text || actionError.text || "").trim()
       try {
         var result = JSON.parse(detail)
@@ -139,6 +169,18 @@ Item {
       }
       actionMessageTimer.restart()
       refreshAfterAction.restart()
+    }
+  }
+
+  Timer {
+    id: actionDeadline
+    interval: root.oneShotDeadlineMs
+    repeat: false
+    onTriggered: {
+      if (!actionProcess.running) return
+      root.actionTimedOut = true
+      root.actionMessage = "Jabridge action timed out."
+      actionProcess.signal(9)
     }
   }
 

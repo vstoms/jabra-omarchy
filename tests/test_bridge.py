@@ -32,10 +32,11 @@ class FakeServer:
                 for line in reader:
                     request = json.loads(line)
                     result = self.handler(request)
-                    if isinstance(result, list) and result and result[0] == "notification":
-                        notification = result[1]
+                    if isinstance(result, list) and result and result[0] in ("notification", "notifications"):
+                        notifications = result[1] if result[0] == "notifications" else [result[1]]
                         result = result[2]
-                        connection.sendall(json.dumps(notification).encode() + b"\n")
+                        for notification in notifications:
+                            connection.sendall(json.dumps(notification).encode() + b"\n")
                     response = {"jsonrpc": "2.0", "id": request["id"]}
                     if isinstance(result, Exception):
                         response["error"] = {"code": -32000, "message": str(result)}
@@ -93,7 +94,36 @@ class BridgeTests(unittest.TestCase):
         with FakeServer(handler) as fake, bridge.RpcClient(fake.path) as client:
             value = client.call("service.ping")
             self.assertEqual(value, {"ready": True})
-            self.assertEqual(client.notifications[0]["method"], "sound.changed")
+            self.assertFalse(hasattr(client, "notifications"))
+
+    def test_rpc_call_rejects_notification_flood(self):
+        def handler(request):
+            notifications = [
+                {"jsonrpc": "2.0", "method": "sound.changed", "params": {"index": index}}
+                for index in range(4)
+            ]
+            return ["notifications", notifications, {"ready": True}]
+
+        original_limit = bridge.MAX_RPC_MESSAGES_PER_CALL
+        bridge.MAX_RPC_MESSAGES_PER_CALL = 3
+        try:
+            with FakeServer(handler) as fake, bridge.RpcClient(fake.path) as client:
+                with self.assertRaisesRegex(bridge.BridgeError, "exceeded 3 messages"):
+                    client.call("service.ping")
+                self.assertFalse(hasattr(client, "notifications"))
+
+        finally:
+            bridge.MAX_RPC_MESSAGES_PER_CALL = original_limit
+
+    def test_rpc_call_enforces_wall_clock_deadline(self):
+        def handler(request):
+            import time
+            time.sleep(0.1)
+            return {"ready": True}
+
+        with FakeServer(handler) as fake, bridge.RpcClient(fake.path, timeout=0.02) as client:
+            with self.assertRaisesRegex(bridge.BridgeError, "call service.ping timed out"):
+                client.call("service.ping")
 
     def test_rpc_connection_remains_usable_after_read_timeout(self):
         def handler(request):
@@ -165,6 +195,14 @@ class BridgeTests(unittest.TestCase):
         self.assertFalse(value["serviceAvailable"])
         self.assertEqual(value["settings"], [])
         self.assertEqual(value["error"], "offline")
+
+    def test_qml_one_shot_processes_have_hard_deadlines(self):
+        service = (ROOT / "Service.qml").read_text()
+        self.assertIn('readonly property int oneShotDeadlineMs: 12000', service)
+        self.assertIn('id: refreshDeadline', service)
+        self.assertIn('refreshProcess.signal(9)', service)
+        self.assertIn('id: actionDeadline', service)
+        self.assertIn('actionProcess.signal(9)', service)
 
 
 if __name__ == "__main__":
