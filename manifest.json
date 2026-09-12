@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.viggo.jabra-omarchy",
+  "name": "Jabridge for Omarchy",
+  "version": "0.1.0",
+  "author": "Viggo",
+  "description": "Jabra battery, device settings, and audio controls through Jabridge IPC.",
+  "license": "MIT",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Jabridge",
+    "description": "Jabra status and controls through the Jabridge service",
+    "category": "Audio",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "showBattery": true,
+      "hideWhenDisconnected": false,
+      "showDeviceSettings": true
+    },
+    "schema": [
+      {
+        "key": "showBattery",
+        "type": "boolean",
+        "label": "Show battery percentage in the bar",
+        "defaultValue": true
+      },
+      {
+        "key": "hideWhenDisconnected",
+        "type": "boolean",
+        "label": "Hide when Jabridge has no connected headset",
+        "defaultValue": false
+      },
+      {
+        "key": "showDeviceSettings",
+        "type": "boolean",
+        "label": "Show writable headset settings in the panel",
+        "defaultValue": true
+      }
+    ]
+  }
+}
