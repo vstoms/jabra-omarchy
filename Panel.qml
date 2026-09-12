@@ -6,7 +6,7 @@ import qs.Ui
 Panel {
   id: root
 
-  moduleName: "io.github.viggo.jabra-omarchy"
+  moduleName: "io.github.vstoms.jabra-omarchy"
   manageIpc: false
 
   property var anchorItem: null

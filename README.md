@@ -3,6 +3,8 @@
 An Omarchy Quattro bar plugin for Jabra headsets managed by
 [Jabridge](https://github.com/Watchdog0x/jabridge).
 
+![Jabridge for Omarchy showing a connected Jabra headset](preview.png)
+
 The plugin is an IPC frontend. It never opens USB, HID, or Bluetooth devices itself.
 Jabridge remains the single owner of device communication.
 
@@ -38,7 +40,7 @@ jabridge ipc ping
 From GitHub:
 
 ```sh
-omarchy plugin add https://github.com/YOUR-GITHUB-USER/jabra-omarchy --enable --yes
+omarchy plugin add https://github.com/vstoms/jabra-omarchy --enable --yes
 ```
 
 From a local checkout:
@@ -50,6 +52,15 @@ omarchy-shell shell rescanPlugins
 
 The bar widget settings can hide it while disconnected, hide the battery percentage,
 or hide the headset-settings section.
+
+## Remove the plugin
+
+```sh
+omarchy plugin remove io.github.vstoms.jabra-omarchy --yes
+```
+
+Removing this frontend does not remove Jabridge, its user service, or its udev rule.
+Manage those separately with Jabridge's own setup commands.
 
 ## IPC behavior and safety
 
@@ -69,7 +80,7 @@ JSON-RPC calls.
 The plugin-local bridge is useful for diagnostics:
 
 ```sh
-BRIDGE="$HOME/.config/omarchy/plugins/io.github.viggo.jabra-omarchy/bin/jabridge_ipc.py"
+BRIDGE="$HOME/.config/omarchy/plugins/io.github.vstoms.jabra-omarchy/bin/jabridge_ipc.py"
 "$BRIDGE" status
 "$BRIDGE" watch
 "$BRIDGE" volume-step output -5

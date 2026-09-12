@@ -7,7 +7,7 @@ import qs.Ui
 BarWidget {
   id: root
 
-  moduleName: "io.github.viggo.jabra-omarchy"
+  moduleName: "io.github.vstoms.jabra-omarchy"
 
   readonly property var jabraService: bar && bar.shell
     ? bar.shell.serviceFor(root.moduleName) : null

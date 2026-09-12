@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.viggo.jabra-omarchy",
+  "id": "io.github.vstoms.jabra-omarchy",
   "name": "Jabridge for Omarchy",
-  "version": "0.1.0",
-  "author": "Viggo",
+  "version": "1.0.0",
+  "author": "Viggo Stomsvik",
   "description": "Jabra battery, device settings, and audio controls through Jabridge IPC.",
   "license": "MIT",
   "kinds": ["service", "bar-widget"],
