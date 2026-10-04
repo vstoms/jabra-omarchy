@@ -14,12 +14,15 @@ Jabridge remains the single owner of device communication.
 - Jabra Link firmware information when a dongle is present.
 - Output and microphone volume and mute controls through Jabridge/PipeWire.
 - Explicit Music and Calls audio modes when Jabridge advertises them.
+- Sound mode buttons for Active Noise Cancellation, HearThrough, and Off when
+  Jabridge exposes `noise-control` for the connected headset. Press `N` in the
+  panel to cycle modes.
 - Headset settings discovered dynamically from `settings.list`.
 - Event-driven updates using Jabridge subscriptions, with reconnect and keepalive handling.
 
-A setting appears only when Jabridge returns it. For example, ANC/HearThrough controls
-will appear automatically if a future Jabridge release exposes `noise-control` for the
-connected model. This plugin does not invent or bypass unsupported settings.
+A setting appears only when Jabridge returns it. The sound mode section shows only the
+modes listed in the setting's `choices`, and it stays hidden for models where Jabridge
+does not expose `noise-control`. This plugin does not invent or bypass unsupported settings.
 
 ## Requirements
 

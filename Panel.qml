@@ -49,6 +49,18 @@ Panel {
     if (!setting || !setting.choices || setting.choices.length === undefined) return []
     return setting.choices
   }
+  readonly property var soundModes: [
+    { value: "ANC", button: "ANC", name: "Active Noise Cancellation" },
+    { value: "HearThrough", button: "HEARTHROUGH", name: "HearThrough" },
+    { value: "Off", button: "OFF", name: "Off" }
+  ]
+  readonly property var soundMode: jabraService ? jabraService.soundMode : null
+  readonly property bool soundModeEditable: root.soundMode !== null && root.soundMode.editable === true
+  function soundModeName(value) {
+    for (var i = 0; i < root.soundModes.length; i++)
+      if (root.soundModes[i].value === String(value)) return root.soundModes[i].name
+    return value === undefined || value === null ? "—" : String(value)
+  }
   function hasMode(mode) {
     return root.jabraService && root.jabraService.output
       ? root.listContains(root.jabraService.output.modes, mode) : false
@@ -110,6 +122,8 @@ Panel {
         if (text === "r" || text === "R") root.jabraService.refresh()
         else if (text === "m" || text === "M") root.jabraService.selectAudioMode("music")
         else if (text === "c" || text === "C") root.jabraService.selectAudioMode("calls")
+        else if ((text === "n" || text === "N") && root.soundModeEditable && !root.busy)
+          root.jabraService.cycleSoundMode()
       }
 
       Flickable {
@@ -168,11 +182,43 @@ Panel {
           Column {
             width: parent.width
             spacing: Style.space(8)
+            visible: root.connected && root.soundMode !== null
+
+            PanelSectionHeader { width: parent.width; text: "SOUND MODE" }
+
+            Row {
+              transform: Translate { x: Style.space(12) }
+              spacing: Style.spacing.md
+              Repeater {
+                model: root.soundModes
+                delegate: ActionButton {
+                  required property var modelData
+                  visible: root.listContains(root.settingChoices(root.soundMode), modelData.value)
+                  text: modelData.button
+                  selected: root.soundMode !== null && String(root.soundMode.value) === modelData.value
+                  enabled: root.soundModeEditable && !root.busy
+                  onClicked: {
+                    if (!selected) root.jabraService.selectSoundMode(modelData.value)
+                  }
+                }
+              }
+            }
+
+            DetailRow {
+              label: "Current"
+              value: root.soundMode !== null ? root.soundModeName(root.soundMode.value) : "—"
+            }
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(8)
             visible: root.jabraService && root.jabraService.soundAvailable && root.jabraService.output !== null
 
             PanelSectionHeader { width: parent.width; text: "AUDIO" }
 
             Row {
+              transform: Translate { x: Style.space(12) }
               spacing: Style.spacing.md
               ActionButton {
                 text: "MUSIC"
@@ -196,6 +242,7 @@ Panel {
             }
 
             Row {
+              transform: Translate { x: Style.space(12) }
               spacing: Style.spacing.md
               ActionButton {
                 text: "−"
@@ -226,6 +273,7 @@ Panel {
             }
 
             Row {
+              transform: Translate { x: Style.space(12) }
               visible: root.jabraService && root.jabraService.microphone !== null
               spacing: Style.spacing.md
               Text {
@@ -260,12 +308,12 @@ Panel {
             id: settingsColumn
             width: parent.width
             spacing: Style.space(9)
-            visible: root.connected && root.showDeviceSettings && root.jabraService && root.jabraService.settings.length > 0
+            visible: root.connected && root.showDeviceSettings && root.jabraService && root.jabraService.otherSettings.length > 0
 
             PanelSectionHeader { width: parent.width; text: "HEADSET SETTINGS" }
 
             Repeater {
-              model: root.jabraService ? root.jabraService.settings : []
+              model: root.jabraService ? root.jabraService.otherSettings : []
               delegate: Item {
                 required property var modelData
                 width: settingsColumn.width
@@ -338,7 +386,9 @@ Panel {
               onClicked: { if (root.jabraService) root.jabraService.refresh() }
             }
             Text {
-              text: "M Music · C Calls · R Refresh · Tab next panel"
+              text: root.soundModeEditable
+                ? "M Music · C Calls · N Sound mode · R Refresh · Tab next panel"
+                : "M Music · C Calls · R Refresh · Tab next panel"
               color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption

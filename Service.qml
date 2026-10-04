@@ -62,6 +62,17 @@ Item {
   readonly property string audioMode: output && output.audioMode ? String(output.audioMode) : ""
   readonly property bool outputEditable: output && output.editable === true
   readonly property bool microphoneEditable: microphone && microphone.editable === true
+  readonly property string soundModeKey: "noise-control"
+  readonly property var soundMode: root.findSetting(root.soundModeKey)
+  readonly property var otherSettings: root.settings.filter(function(setting) {
+    return !setting || setting.key !== root.soundModeKey
+  })
+
+  function findSetting(key) {
+    for (var i = 0; i < root.settings.length; i++)
+      if (root.settings[i] && root.settings[i].key === key) return root.settings[i]
+    return null
+  }
 
   function bridgeCommand(arguments) {
     // setsid makes the child the leader of a dedicated process group. Every
@@ -182,6 +193,8 @@ Item {
   function adjustVolume(kind, delta) { runAction(["volume-step", String(kind), String(delta)]) }
   function toggleMute(kind) { runAction(["mute-toggle", String(kind)]) }
   function selectAudioMode(mode) { runAction(["mode", String(mode)]) }
+  function selectSoundMode(value) { setSetting(root.soundModeKey, value) }
+  function cycleSoundMode() { cycleSetting(root.soundModeKey) }
 
   Process {
     id: watcher
